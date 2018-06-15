@@ -1,0 +1,3927 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 93,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "\n",
+    "from pyspark.sql import DataFrame, functions as F\n",
+    "from pyspark.sql.window import Window\n",
+    "from pyspark.sql.types import *"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 94,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "s3_path = \"s3a://devsisters-gb-gamelog-prod/gb-prod-gamelog_\"\n",
+    "logquery = sqlContext.read.format(\"com.devsisters.breadcrumb.spark.io.logquery\")\n",
+    "opt = logquery.option(\"pathPrefix\", s3_path)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Load Login"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 95,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "start_date = '2017-11-28'\n",
+    "end_date = '2018-06-14'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 96,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "login_df = opt.option(\"primaryKey\", \"/login\").load() \\\n",
+    "    .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_date, end_date))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 97,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "root\n",
+      " |-- @timestamp: string (nullable = true)\n",
+      " |-- @version: long (nullable = true)\n",
+      " |-- action: string (nullable = true)\n",
+      " |-- country_code: string (nullable = true)\n",
+      " |-- current_land: long (nullable = true)\n",
+      " |-- current_trophy: long (nullable = true)\n",
+      " |-- environment: string (nullable = true)\n",
+      " |-- host: string (nullable = true)\n",
+      " |-- ip: string (nullable = true)\n",
+      " |-- level: string (nullable = true)\n",
+      " |-- log_type: string (nullable = true)\n",
+      " |-- message: string (nullable = true)\n",
+      " |-- method: string (nullable = true)\n",
+      " |-- mid: string (nullable = true)\n",
+      " |-- player_level: long (nullable = true)\n",
+      " |-- process_time: double (nullable = true)\n",
+      " |-- remote_addr: string (nullable = true)\n",
+      " |-- request: struct (nullable = true)\n",
+      " |    |-- agency: string (nullable = true)\n",
+      " |    |-- appsflyerDeviceId: string (nullable = true)\n",
+      " |    |-- commonReq: struct (nullable = true)\n",
+      " |    |    |-- clientVersion: string (nullable = true)\n",
+      " |    |    |-- dataVersionInfo: struct (nullable = true)\n",
+      " |    |    |    |-- comboName: string (nullable = true)\n",
+      " |    |    |    |-- serverDxcHash: string (nullable = true)\n",
+      " |    |    |-- marketType: string (nullable = true)\n",
+      " |    |    |-- memberHash: string (nullable = true)\n",
+      " |    |    |-- mid: string (nullable = true)\n",
+      " |    |    |-- osType: string (nullable = true)\n",
+      " |    |    |-- sessionKey: string (nullable = true)\n",
+      " |    |    |-- time: long (nullable = true)\n",
+      " |    |-- deviceAuthParams: struct (nullable = true)\n",
+      " |    |    |-- deviceType: string (nullable = true)\n",
+      " |    |    |-- secret: string (nullable = true)\n",
+      " |    |    |-- uuid: string (nullable = true)\n",
+      " |    |-- languageCode: string (nullable = true)\n",
+      " |    |-- loadingLog: array (nullable = true)\n",
+      " |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |-- dataIndexHash: string (nullable = true)\n",
+      " |    |    |    |-- delayBeforeLoginMilliSec: long (nullable = true)\n",
+      " |    |    |    |-- downloadDataIndexTimeMilliSec: long (nullable = true)\n",
+      " |    |    |    |-- downloadFailedFileList: array (nullable = true)\n",
+      " |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |-- fileHash: string (nullable = true)\n",
+      " |    |    |    |    |    |-- retryCount: long (nullable = true)\n",
+      " |    |    |    |-- downloadIndexTimeMilliSec: long (nullable = true)\n",
+      " |    |    |    |-- downloadURL: string (nullable = true)\n",
+      " |    |    |    |-- indexHash: string (nullable = true)\n",
+      " |    |    |    |-- numOfDownloads: long (nullable = true)\n",
+      " |    |    |    |-- sizeOfDownloads: long (nullable = true)\n",
+      " |    |    |    |-- totalDownloadTimeMilliSec: long (nullable = true)\n",
+      " |    |    |    |-- userDownloadTimeMilliSec: long (nullable = true)\n",
+      " |    |    |    |-- verifyFailedFileList: array (nullable = true)\n",
+      " |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |-- mediaSource: string (nullable = true)\n",
+      " |    |-- pushToken: string (nullable = true)\n",
+      " |    |-- timeZone: string (nullable = true)\n",
+      " |-- request_type: string (nullable = true)\n",
+      " |-- response: struct (nullable = true)\n",
+      " |    |-- abuserWarning: boolean (nullable = true)\n",
+      " |    |-- championsInfo: struct (nullable = true)\n",
+      " |    |    |-- seasonId: long (nullable = true)\n",
+      " |    |    |-- status: struct (nullable = true)\n",
+      " |    |    |    |-- finished: struct (nullable = true)\n",
+      " |    |    |    |    |-- arenas: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- nearLeaderboard: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- topLeaderboard: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- totalPercent: long (nullable = true)\n",
+      " |    |    |    |    |-- totalRank: long (nullable = true)\n",
+      " |    |    |    |    |-- totalScore: long (nullable = true)\n",
+      " |    |    |    |    |-- totalUser: long (nullable = true)\n",
+      " |    |    |    |-- playing: struct (nullable = true)\n",
+      " |    |    |    |    |-- arenas: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- nearLeaderboard: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- topLeaderboard: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |-- totalPercent: long (nullable = true)\n",
+      " |    |    |    |    |-- totalRank: long (nullable = true)\n",
+      " |    |    |    |    |-- totalScore: long (nullable = true)\n",
+      " |    |    |    |    |-- totalUser: long (nullable = true)\n",
+      " |    |    |    |-- postSeason: string (nullable = true)\n",
+      " |    |    |    |-- preSeason: string (nullable = true)\n",
+      " |    |    |    |-- unqualified: string (nullable = true)\n",
+      " |    |-- commonResp: struct (nullable = true)\n",
+      " |    |    |-- localPushes: array (nullable = true)\n",
+      " |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |-- key: string (nullable = true)\n",
+      " |    |    |    |    |-- serverTime: long (nullable = true)\n",
+      " |    |    |-- member: struct (nullable = true)\n",
+      " |    |    |    |-- bsdiff: struct (nullable = true)\n",
+      " |    |    |    |    |-- diff: string (nullable = true)\n",
+      " |    |    |    |    |-- hash: string (nullable = true)\n",
+      " |    |    |    |-- full: struct (nullable = true)\n",
+      " |    |    |    |    |-- full: string (nullable = true)\n",
+      " |    |    |    |    |-- hash: string (nullable = true)\n",
+      " |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |-- accFBFriendReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- friendsCount: long (nullable = true)\n",
+      " |    |    |    |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- coin: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- crystal: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |-- bumpReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- accRewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- card: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- category: string (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- coinQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- convertedItemQty: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- none: string (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- convertedToCoinQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- crystal: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |-- bumpCount: long (nullable = true)\n",
+      " |    |    |    |    |    |-- mid: string (nullable = true)\n",
+      " |    |    |    |    |    |-- nickname: string (nullable = true)\n",
+      " |    |    |    |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- crystal: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |-- couponReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- message: string (nullable = true)\n",
+      " |    |    |    |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- coin: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- crystal: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- gachaPotTicket: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- gachaPotGradeKey: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- soulPotion: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |-- title: string (nullable = true)\n",
+      " |    |    |    |    |-- donationReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- capacity: long (nullable = true)\n",
+      " |    |    |    |    |    |-- nicknameCounts: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- count: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- nickname: string (nullable = true)\n",
+      " |    |    |    |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- card: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- category: string (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- coinQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- convertedItemQty: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- none: string (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- convertedToCoinQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |-- levelUpReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |-- rewards: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- coin: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |-- trophyResetReward: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- legendTrophyGain: long (nullable = true)\n",
+      " |    |    |    |    |    |-- legendTrophyTotal: long (nullable = true)\n",
+      " |    |    |    |    |    |-- trophy: long (nullable = true)\n",
+      " |    |    |-- serverTime: long (nullable = true)\n",
+      " |    |-- csToken: string (nullable = true)\n",
+      " |    |-- enrollTimestamp: long (nullable = true)\n",
+      " |    |-- error: struct (nullable = true)\n",
+      " |    |    |-- noError: string (nullable = true)\n",
+      " |    |-- friendInfo: struct (nullable = true)\n",
+      " |    |    |-- bumpCount: long (nullable = true)\n",
+      " |    |    |-- donationReqCnt: long (nullable = true)\n",
+      " |    |    |-- duelChest: struct (nullable = true)\n",
+      " |    |    |    |-- availableFromTs: long (nullable = true)\n",
+      " |    |    |    |-- stars: long (nullable = true)\n",
+      " |    |    |    |-- unavailable: string (nullable = true)\n",
+      " |    |    |-- friendRemainCnt: long (nullable = true)\n",
+      " |    |    |-- friendsRank: array (nullable = true)\n",
+      " |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |-- friendsReq: array (nullable = true)\n",
+      " |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |-- accExp: long (nullable = true)\n",
+      " |    |    |    |    |-- currentLand: long (nullable = true)\n",
+      " |    |    |    |    |-- donationScore: long (nullable = true)\n",
+      " |    |    |    |    |-- hashtag: long (nullable = true)\n",
+      " |    |    |    |    |-- isOnline: boolean (nullable = true)\n",
+      " |    |    |    |    |-- lastPlay: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- coin: long (nullable = true)\n",
+      " |    |    |    |    |    |-- cookie: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |-- cookie2: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |-- onPlay: boolean (nullable = true)\n",
+      " |    |    |    |    |    |-- pet: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |-- score: long (nullable = true)\n",
+      " |    |    |    |    |    |-- time: long (nullable = true)\n",
+      " |    |    |    |    |    |-- treasures: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |-- lastRequestTime: long (nullable = true)\n",
+      " |    |    |    |    |-- legendTrophy: long (nullable = true)\n",
+      " |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |-- mid: string (nullable = true)\n",
+      " |    |    |    |    |-- nickname: string (nullable = true)\n",
+      " |    |    |    |    |-- trophy: long (nullable = true)\n",
+      " |    |    |-- maxFBFriendCnt: long (nullable = true)\n",
+      " |    |    |-- myReqFull: boolean (nullable = true)\n",
+      " |    |-- friendIslandChapterState: array (nullable = true)\n",
+      " |    |    |-- element: string (containsNull = true)\n",
+      " |    |-- googleEmail: string (nullable = true)\n",
+      " |    |-- landLeaderboard: struct (nullable = true)\n",
+      " |    |    |-- endTime: long (nullable = true)\n",
+      " |    |    |-- leaders: array (nullable = true)\n",
+      " |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |-- myRank: long (nullable = true)\n",
+      " |    |    |-- totalRankUser: long (nullable = true)\n",
+      " |    |-- leagueInfo: struct (nullable = true)\n",
+      " |    |    |-- effectSeasonId: long (nullable = true)\n",
+      " |    |    |-- landId: long (nullable = true)\n",
+      " |    |    |-- mapSeasonId: long (nullable = true)\n",
+      " |    |    |-- status: struct (nullable = true)\n",
+      " |    |    |    |-- finished: struct (nullable = true)\n",
+      " |    |    |    |    |-- members: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |-- notOpen: string (nullable = true)\n",
+      " |    |    |    |-- onProgress: struct (nullable = true)\n",
+      " |    |    |    |    |-- endTime: long (nullable = true)\n",
+      " |    |    |    |    |-- members: array (nullable = true)\n",
+      " |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |-- willStart: struct (nullable = true)\n",
+      " |    |    |    |    |-- estimatedMatchTime: long (nullable = true)\n",
+      " |    |    |    |    |-- matchedMemberCount: long (nullable = true)\n",
+      " |    |    |    |    |-- selfMember: struct (nullable = true)\n",
+      " |    |    |    |    |    |-- bestPlay: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |-- coin: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- cookie: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- cookie2: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- onPlay: boolean (nullable = true)\n",
+      " |    |    |    |    |    |    |-- pet: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- score: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- time: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- treasures: array (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |    |-- deltaRank: long (nullable = true)\n",
+      " |    |    |    |    |    |-- member: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |-- accExp: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- currentLand: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- donationScore: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- hashtag: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- isOnline: boolean (nullable = true)\n",
+      " |    |    |    |    |    |    |-- lastPlay: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- coin: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- cookie: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- cookie2: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- onPlay: boolean (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- pet: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- accQty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionBlessingGradeId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- evolutionLevel: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- skinId: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- stamina: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- lastRestoreTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |    |-- qty: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- score: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- time: long (nullable = true)\n",
+      " |    |    |    |    |    |    |    |-- treasures: array (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |    |    |    |    |    |-- lastRequestTime: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- legendTrophy: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- level: long (nullable = true)\n",
+      " |    |    |    |    |    |    |-- mid: string (nullable = true)\n",
+      " |    |    |    |    |    |    |-- nickname: string (nullable = true)\n",
+      " |    |    |    |    |    |    |-- trophy: long (nullable = true)\n",
+      " |    |    |    |    |    |-- rank: long (nullable = true)\n",
+      " |    |    |    |    |    |-- rewardItems: array (nullable = true)\n",
+      " |    |    |    |    |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |    |    |    |    |-- chest: struct (nullable = true)\n",
+      " |    |    |    |    |    |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |    |    |-- rewardTrophy: long (nullable = true)\n",
+      " |    |    |-- tierId: long (nullable = true)\n",
+      " |    |-- lobbyState: struct (nullable = true)\n",
+      " |    |    |-- cookieStates: array (nullable = true)\n",
+      " |    |    |    |-- element: string (containsNull = true)\n",
+      " |    |-- notices: array (nullable = true)\n",
+      " |    |    |-- element: struct (containsNull = true)\n",
+      " |    |    |    |-- cautionKey: string (nullable = true)\n",
+      " |    |    |    |-- contentKey: string (nullable = true)\n",
+      " |    |    |    |-- externalUrl: string (nullable = true)\n",
+      " |    |    |    |-- id: long (nullable = true)\n",
+      " |    |    |    |-- popUp: boolean (nullable = true)\n",
+      " |    |    |    |-- subtitleKey: string (nullable = true)\n",
+      " |    |    |    |-- titleKey: string (nullable = true)\n",
+      " |    |-- playerId: string (nullable = true)\n",
+      " |    |-- secret: string (nullable = true)\n",
+      " |    |-- sessionKey: string (nullable = true)\n",
+      " |-- response_code: long (nullable = true)\n",
+      " |-- response_type: string (nullable = true)\n",
+      " |-- rid: string (nullable = true)\n",
+      " |-- server_type: string (nullable = true)\n",
+      " |-- uri: string (nullable = true)\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "login_df.printSchema()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 98,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "login_df.registerTempTable(\"login_df\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 99,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+--------------------+--------+------+------------+------------+--------------+-----------+--------------------+--------------+-----+--------+-------+------+---------+------------+------------+------------------+--------------------+------------+--------------------+-------------+-------------+--------------------+-----------+------+\n",
+      "|          @timestamp|@version|action|country_code|current_land|current_trophy|environment|                host|            ip|level|log_type|message|method|      mid|player_level|process_time|       remote_addr|             request|request_type|            response|response_code|response_type|                 rid|server_type|   uri|\n",
+      "+--------------------+--------+------+------------+------------+--------------+-----------+--------------------+--------------+-----+--------+-------+------+---------+------------+------------+------------------+--------------------+------------+--------------------+-------------+-------------+--------------------+-----------+------+\n",
+      "|2017-11-28T00:20:...|    null|/login|          KR|           7|          4293|       prod|ip-172-29-65-190....|203.226.207.32| info| gamelog|       |  POST|DSNGC0000|          23| 0.310672543|172.29.1.249:28522|[,1510434765091-7...|    LoginReq|[false,[23,[null,...|          200|    LoginResp|BvClcBgHpFOlOs5um7rO|game_server|/login|\n",
+      "|2017-11-28T00:59:...|    null|/login|          KR|           7|          4288|       prod|ip-172-29-65-187....|203.226.207.32| info| gamelog|       |  POST|DSNGC0000|          23| 0.134493597|172.29.1.192:60325|[,1510434765091-7...|    LoginReq|[false,[23,[null,...|          200|    LoginResp|PcaesCkVaxvxwF3WgCgQ|game_server|/login|\n",
+      "+--------------------+--------+------+------------+------------+--------------+-----------+--------------------+--------------+-----+--------+-------+------+---------+------------+------------+------------------+--------------------+------------+--------------------+-------------+-------------+--------------------+-----------+------+\n",
+      "only showing top 2 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"login_df\").show(2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 100,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "login = spark.sql(\"\"\"\n",
+    "        select\n",
+    "            mid\n",
+    "            , substr(`@timestamp`,1,10) as date\n",
+    "            , `@timestamp` as date_time\n",
+    "        from login_df\n",
+    "\"\"\")      "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 101,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "login.registerTempTable(\"login1\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 102,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+---------+----------+--------------------+\n",
+      "|      mid|      date|           date_time|\n",
+      "+---------+----------+--------------------+\n",
+      "|DSNGC0000|2017-11-28|2017-11-28T00:20:...|\n",
+      "|DSNGC0000|2017-11-28|2017-11-28T00:59:...|\n",
+      "+---------+----------+--------------------+\n",
+      "only showing top 2 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"login1\").show(2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 103,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "#### login.unpersist()\n",
+    "#### login.cache()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Load Billing"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 104,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "### 2차 시도: left join\n",
+    "\n",
+    "server_billing = opt.option(\"primaryKey\", \"/server/billing\").load().drop(\"@version\")\n",
+    "    \n",
+    "def _revise_server_billing(opt, server_billing):\n",
+    "    revise_date = '2017-11-28'\n",
+    "    revise_currency_code = 'KRW'\n",
+    "\n",
+    "    return server_billing \\\n",
+    "        .withColumn('server__billing',\n",
+    "                    F.struct(F.col(\"server__billing.price\").alias(\"price_origin\"),\n",
+    "                             F.udf(lambda timestamp, currency_code, price_origin:\n",
+    "                                   round(price_origin / 1.1) if revise_date <= timestamp and revise_currency_code == currency_code\n",
+    "                                   else price_origin, DoubleType())\n",
+    "                             ('@timestamp', 'server__billing.currency_code', 'server__billing.price').alias(\"price\"),\n",
+    "                             *[F.col(\"server__billing.{}\".format(col)) for col in\n",
+    "                               server_billing.select(\"server__billing.*\").drop(\"price\").columns]))\n",
+    "    \n",
+    "\n",
+    "\n",
+    "    \n",
+    "billing_df = _revise_server_billing(opt, server_billing)\n",
+    "billing_df.registerTempTable(\"billing_df\")\n",
+    "\n",
+    "\n",
+    "class CRORollcakeInfo:\n",
+    "    def __init__(self):\n",
+    "        default_session = \"rollcake_db\"\n",
+    "        mysql_user = \"spark\"\n",
+    "        mysql_password = \"dhdudxorcjswo1!\"\n",
+    "        self.database = \"rollcake_db\"\n",
+    "        self.properties = {\"user\": mysql_user, \"password\": mysql_password}\n",
+    "        self.driver = \"com.mysql.jdbc.Driver\"\n",
+    "        self.host = \"gb-rollcake2.cb8trxt1zutn.us-west-2.rds.amazonaws.com\"\n",
+    "        self.jdbc = \"jdbc:mysql://%s/%s?characterEncoding=UTF-8&rewriteBatchedStatements=true\" % (self.host, self.database)\n",
+    "            \n",
+    "mysql_info = CRORollcakeInfo()\n",
+    "\n",
+    "sqlContext.read \\\n",
+    "    .option(\"driver\", mysql_info.driver) \\\n",
+    "    .jdbc(mysql_info.jdbc, table='currency_rate', properties=mysql_info.properties) \\\n",
+    "    .registerTempTable('currency_rate')\n",
+    "\n",
+    "package_meta = spark.read.parquet(\"s3a://devsisters-gb-data-analysis/balance/meta/package\") \\\n",
+    "    .drop(\"product_id\")\n",
+    "\n",
+    "billing = spark.sql(\"\"\"\n",
+    "    select\n",
+    "        t1.mid\n",
+    "        , t1.date \n",
+    "        , t1.date_time\n",
+    "        , t1.player_level\n",
+    "        , t1.product_key\n",
+    "        , t1.product_id\n",
+    "        , round(t1.revenue * t2.rate) as revenue\n",
+    "    from\n",
+    "        (\n",
+    "        select\n",
+    "            mid\n",
+    "            , substr(`@timestamp`,1,10) as date\n",
+    "            , `@timestamp` as date_time\n",
+    "\n",
+    "            , server__billing.player_level as player_level\n",
+    "            , case when server__billing is null then 0 else server__billing.product_key end as product_key\n",
+    "            , case when server__billing is null then product_id else server__billing.product_id end as product_id\n",
+    "            , case when server__billing is null then currency_code else server__billing.currency_code end as currency_code\n",
+    "            , case when server__billing is null then price else server__billing.price end as revenue\n",
+    "        from\n",
+    "            billing_df\n",
+    "        ) t1\n",
+    "        left join currency_rate t2\n",
+    "            on t1.currency_code = t2.currency_code and t1.date = t2.date\n",
+    "\"\"\")\n",
+    "\n",
+    "\n",
+    "\n",
+    "billing = billing.join(package_meta, [\"product_key\"], \"left\")       \n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 105,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "billing.registerTempTable(\"billing1\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 106,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "DataFrame[product_key: bigint, mid: string, date: string, date_time: string, player_level: bigint, product_id: string, revenue: double, category1: string, category2: string, category3: string, pkg_name: string]"
+      ]
+     },
+     "execution_count": 106,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "billing.unpersist()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 107,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "DataFrame[product_key: bigint, mid: string, date: string, date_time: string, player_level: bigint, product_id: string, revenue: double, category1: string, category2: string, category3: string, pkg_name: string]"
+      ]
+     },
+     "execution_count": 107,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "billing.cache()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 156,
+   "metadata": {
+    "collapsed": false,
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+---------+----------+--------------------+------------+------------------+-------+---------+---------+---------+-------------+\n",
+      "|product_key|      mid|      date|           date_time|player_level|        product_id|revenue|category1|category2|category3|     pkg_name|\n",
+      "+-----------+---------+----------+--------------------+------------+------------------+-------+---------+---------+---------+-------------+\n",
+      "|         64|YSBNS6660|2018-01-26|2018-01-26T05:09:...|          11|gb.tier10.cookie.b|10625.0|       한정|    쿠키패키지|       에픽|아이스캔디맛 쿠키 패키지|\n",
+      "|         64|YSBNS6660|2018-01-26|2018-01-26T05:09:...|          11|gb.tier10.cookie.b|10625.0|       한정|    쿠키패키지|       에픽|아이스캔디맛 쿠키 패키지|\n",
+      "+-----------+---------+----------+--------------------+------------+------------------+-------+---------+---------+---------+-------------+\n",
+      "only showing top 2 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "billing.where(\"product_key = 64 and date <= '2018-01-30'\").show(2)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 아이스캔디맛 기간 정의해주기"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 185,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "### 아이스캔디맛은 따로\n",
+    "\n",
+    "spark.sql(\"\"\"\n",
+    "    select product_key, pkg_name, date, min(date_time) as mindate\n",
+    "    from billing1\n",
+    "    where category2 = '쿠키패키지'\n",
+    "    and product_key = 64\n",
+    "    and date >= '2018-01-30'\n",
+    "    group by product_key, pkg_name, date\n",
+    "\"\"\").registerTempTable(\"icecandy\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 186,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+-------------+----------+--------------------+\n",
+      "|product_key|     pkg_name|      date|             mindate|\n",
+      "+-----------+-------------+----------+--------------------+\n",
+      "|         64|아이스캔디맛 쿠키 패키지|2018-02-11|2018-02-11T00:03:...|\n",
+      "|         64|아이스캔디맛 쿠키 패키지|2018-02-22|2018-02-22T00:03:...|\n",
+      "+-----------+-------------+----------+--------------------+\n",
+      "only showing top 2 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"icecandy\").show(2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 187,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "### 나머지 메타 패키지 (쿠키패키지)의 mindate 구하는 거\n",
+    "spark.sql(\"\"\"\n",
+    "    select product_key, pkg_name, min(date_time) as mindate\n",
+    "    from billing1\n",
+    "    where category2 = '쿠키패키지' and category3 != '레전드' and product_key >= 46\n",
+    "    group by product_key, pkg_name\n",
+    "\n",
+    "\"\"\").registerTempTable(\"pkg_cookie\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 112,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+-------------+--------------------+\n",
+      "|product_key|     pkg_name|             mindate|\n",
+      "+-----------+-------------+--------------------+\n",
+      "|         46|  마카롱맛 쿠키 패키지|2017-11-30T08:31:...|\n",
+      "|         50| 음유시인맛 쿠키 패키지|2017-12-13T10:31:...|\n",
+      "|         53| 스파클링맛 쿠키 패키지|2017-12-20T08:28:...|\n",
+      "|         61|   단팥맛 쿠키 패키지|2018-01-12T10:24:...|\n",
+      "|         64|아이스캔디맛 쿠키 패키지|2018-01-26T05:09:...|\n",
+      "|         73|  핑크초코 쿠키 패키지|2018-02-13T10:12:...|\n",
+      "|         76| 아보카도맛 쿠키 패키지|2018-02-27T10:08:...|\n",
+      "|         79|   벚꽃맛 쿠키 패키지|2018-03-13T07:07:...|\n",
+      "|         82| 휘핑크림맛 쿠키 패키지|2018-03-27T06:28:...|\n",
+      "|         84| 화이트초코 쿠키 패키지|2018-04-10T09:15:...|\n",
+      "|         88|  탐험가맛 쿠키 패키지|2018-04-28T14:12:...|\n",
+      "|         94| 블랙베리맛 쿠키 패키지|2018-05-15T00:01:...|\n",
+      "|        100|   칠리맛 쿠키 패키지|2018-05-29T00:10:...|\n",
+      "|        101|  다크초코 쿠키 패키지|2018-06-04T23:44:...|\n",
+      "|        109|  홍고추맛 쿠키 패키지|2018-06-12T00:02:...|\n",
+      "+-----------+-------------+--------------------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"pkg_cookie\").sort(\"mindate\").show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 211,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "cookie_min_df = spark.sql(\"\"\"\n",
+    "    select\n",
+    "        t.*\n",
+    "        , substr(mindate,1,10) as start_date\n",
+    "        , substr(time2,1,10) as end_date\n",
+    "    from\n",
+    "    (\n",
+    "    select product_key, pkg_name, mindate\n",
+    "    , from_unixtime(unix_timestamp(mindate, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")+86400, \"yyyy-MM-dd'T'HH:mm:ss.SSS\") as time2\n",
+    "    from pkg_cookie\n",
+    "    ) as t\n",
+    "\"\"\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 114,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "cookie_min_pd = cookie_min_df.sort(\"mindate\").toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 115,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "n = cookie_min_pd[\"product_key\"].count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 116,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>product_key</th>\n",
+       "      <th>pkg_name</th>\n",
+       "      <th>mindate</th>\n",
+       "      <th>time2</th>\n",
+       "      <th>start_date</th>\n",
+       "      <th>end_date</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>46</td>\n",
+       "      <td>마카롱맛 쿠키 패키지</td>\n",
+       "      <td>2017-11-30T08:31:05.562+09:00</td>\n",
+       "      <td>2017-12-01T08:31:05.000</td>\n",
+       "      <td>2017-11-30</td>\n",
+       "      <td>2017-12-01</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>2017-12-13T10:31:14.435+09:00</td>\n",
+       "      <td>2017-12-14T10:31:14.000</td>\n",
+       "      <td>2017-12-13</td>\n",
+       "      <td>2017-12-14</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>53</td>\n",
+       "      <td>스파클링맛 쿠키 패키지</td>\n",
+       "      <td>2017-12-20T08:28:55.412+09:00</td>\n",
+       "      <td>2017-12-21T08:28:55.000</td>\n",
+       "      <td>2017-12-20</td>\n",
+       "      <td>2017-12-21</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>61</td>\n",
+       "      <td>단팥맛 쿠키 패키지</td>\n",
+       "      <td>2018-01-12T10:24:07.215+09:00</td>\n",
+       "      <td>2018-01-13T10:24:07.000</td>\n",
+       "      <td>2018-01-12</td>\n",
+       "      <td>2018-01-13</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>2018-01-26T05:09:33.116+09:00</td>\n",
+       "      <td>2018-01-27T05:09:33.000</td>\n",
+       "      <td>2018-01-26</td>\n",
+       "      <td>2018-01-27</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>73</td>\n",
+       "      <td>핑크초코 쿠키 패키지</td>\n",
+       "      <td>2018-02-13T10:12:31.555+09:00</td>\n",
+       "      <td>2018-02-14T10:12:31.000</td>\n",
+       "      <td>2018-02-13</td>\n",
+       "      <td>2018-02-14</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>76</td>\n",
+       "      <td>아보카도맛 쿠키 패키지</td>\n",
+       "      <td>2018-02-27T10:08:24.181+09:00</td>\n",
+       "      <td>2018-02-28T10:08:24.000</td>\n",
+       "      <td>2018-02-27</td>\n",
+       "      <td>2018-02-28</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>79</td>\n",
+       "      <td>벚꽃맛 쿠키 패키지</td>\n",
+       "      <td>2018-03-13T07:07:52.655+09:00</td>\n",
+       "      <td>2018-03-14T07:07:52.000</td>\n",
+       "      <td>2018-03-13</td>\n",
+       "      <td>2018-03-14</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>82</td>\n",
+       "      <td>휘핑크림맛 쿠키 패키지</td>\n",
+       "      <td>2018-03-27T06:28:24.302+09:00</td>\n",
+       "      <td>2018-03-28T06:28:24.000</td>\n",
+       "      <td>2018-03-27</td>\n",
+       "      <td>2018-03-28</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>84</td>\n",
+       "      <td>화이트초코 쿠키 패키지</td>\n",
+       "      <td>2018-04-10T09:15:55.864+09:00</td>\n",
+       "      <td>2018-04-11T09:15:55.000</td>\n",
+       "      <td>2018-04-10</td>\n",
+       "      <td>2018-04-11</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>88</td>\n",
+       "      <td>탐험가맛 쿠키 패키지</td>\n",
+       "      <td>2018-04-28T14:12:21.835+09:00</td>\n",
+       "      <td>2018-04-29T14:12:21.000</td>\n",
+       "      <td>2018-04-28</td>\n",
+       "      <td>2018-04-29</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>94</td>\n",
+       "      <td>블랙베리맛 쿠키 패키지</td>\n",
+       "      <td>2018-05-15T00:01:46.090+09:00</td>\n",
+       "      <td>2018-05-16T00:01:46.000</td>\n",
+       "      <td>2018-05-15</td>\n",
+       "      <td>2018-05-16</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>100</td>\n",
+       "      <td>칠리맛 쿠키 패키지</td>\n",
+       "      <td>2018-05-29T00:10:11.198+09:00</td>\n",
+       "      <td>2018-05-30T00:10:11.000</td>\n",
+       "      <td>2018-05-29</td>\n",
+       "      <td>2018-05-30</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>101</td>\n",
+       "      <td>다크초코 쿠키 패키지</td>\n",
+       "      <td>2018-06-04T23:44:42.562+09:00</td>\n",
+       "      <td>2018-06-05T23:44:42.000</td>\n",
+       "      <td>2018-06-04</td>\n",
+       "      <td>2018-06-05</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>109</td>\n",
+       "      <td>홍고추맛 쿠키 패키지</td>\n",
+       "      <td>2018-06-12T00:02:28.677+09:00</td>\n",
+       "      <td>2018-06-13T00:02:28.000</td>\n",
+       "      <td>2018-06-12</td>\n",
+       "      <td>2018-06-13</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    product_key       pkg_name                        mindate  \\\n",
+       "0            46    마카롱맛 쿠키 패키지  2017-11-30T08:31:05.562+09:00   \n",
+       "1            50   음유시인맛 쿠키 패키지  2017-12-13T10:31:14.435+09:00   \n",
+       "2            53   스파클링맛 쿠키 패키지  2017-12-20T08:28:55.412+09:00   \n",
+       "3            61     단팥맛 쿠키 패키지  2018-01-12T10:24:07.215+09:00   \n",
+       "4            64  아이스캔디맛 쿠키 패키지  2018-01-26T05:09:33.116+09:00   \n",
+       "5            73    핑크초코 쿠키 패키지  2018-02-13T10:12:31.555+09:00   \n",
+       "6            76   아보카도맛 쿠키 패키지  2018-02-27T10:08:24.181+09:00   \n",
+       "7            79     벚꽃맛 쿠키 패키지  2018-03-13T07:07:52.655+09:00   \n",
+       "8            82   휘핑크림맛 쿠키 패키지  2018-03-27T06:28:24.302+09:00   \n",
+       "9            84   화이트초코 쿠키 패키지  2018-04-10T09:15:55.864+09:00   \n",
+       "10           88    탐험가맛 쿠키 패키지  2018-04-28T14:12:21.835+09:00   \n",
+       "11           94   블랙베리맛 쿠키 패키지  2018-05-15T00:01:46.090+09:00   \n",
+       "12          100     칠리맛 쿠키 패키지  2018-05-29T00:10:11.198+09:00   \n",
+       "13          101    다크초코 쿠키 패키지  2018-06-04T23:44:42.562+09:00   \n",
+       "14          109    홍고추맛 쿠키 패키지  2018-06-12T00:02:28.677+09:00   \n",
+       "\n",
+       "                      time2  start_date    end_date  \n",
+       "0   2017-12-01T08:31:05.000  2017-11-30  2017-12-01  \n",
+       "1   2017-12-14T10:31:14.000  2017-12-13  2017-12-14  \n",
+       "2   2017-12-21T08:28:55.000  2017-12-20  2017-12-21  \n",
+       "3   2018-01-13T10:24:07.000  2018-01-12  2018-01-13  \n",
+       "4   2018-01-27T05:09:33.000  2018-01-26  2018-01-27  \n",
+       "5   2018-02-14T10:12:31.000  2018-02-13  2018-02-14  \n",
+       "6   2018-02-28T10:08:24.000  2018-02-27  2018-02-28  \n",
+       "7   2018-03-14T07:07:52.000  2018-03-13  2018-03-14  \n",
+       "8   2018-03-28T06:28:24.000  2018-03-27  2018-03-28  \n",
+       "9   2018-04-11T09:15:55.000  2018-04-10  2018-04-11  \n",
+       "10  2018-04-29T14:12:21.000  2018-04-28  2018-04-29  \n",
+       "11  2018-05-16T00:01:46.000  2018-05-15  2018-05-16  \n",
+       "12  2018-05-30T00:10:11.000  2018-05-29  2018-05-30  \n",
+       "13  2018-06-05T23:44:42.000  2018-06-04  2018-06-05  \n",
+       "14  2018-06-13T00:02:28.000  2018-06-12  2018-06-13  "
+      ]
+     },
+     "execution_count": 116,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "cookie_min_pd"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 117,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "#### 아래 코딩은 아아래에 루프가 맞는지 확인하는 용"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "## start_dt ='2017-11-30T08:31:05.562+09:00'\n",
+    "## end_dt = '2017-12-01T08:31:05.000'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "ename": "NameError",
+     "evalue": "name 'product_key' is not defined",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[1;31mNameError\u001b[0m                                 Traceback (most recent call last)",
+      "\u001b[1;32m<ipython-input-25-f7b9eb18c88b>\u001b[0m in \u001b[0;36m<module>\u001b[1;34m()\u001b[0m\n\u001b[1;32m----> 1\u001b[1;33m \u001b[0mlogin_df\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mopt\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0moption\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"primaryKey\"\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;34m\"/login\"\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mload\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;33m)\u001b[0m     \u001b[1;33m.\u001b[0m\u001b[0mwhere\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\"\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mformat\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mstart_dt\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mend_dt\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m)\u001b[0m     \u001b[1;33m.\u001b[0m\u001b[0magg\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mF\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mcountDistinct\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"mid\"\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0malias\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"au\"\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m)\u001b[0m     \u001b[1;33m.\u001b[0m\u001b[0mwithColumn\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"product_key\"\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mF\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mlit\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"{}\"\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mformat\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mproduct_key\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m      2\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m      3\u001b[0m \u001b[0mlogin_df\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mshow\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+      "\u001b[1;31mNameError\u001b[0m: name 'product_key' is not defined"
+     ]
+    }
+   ],
+   "source": [
+    "##    login_df = opt.option(\"primaryKey\", \"/login\").load() \\\n",
+    "##        .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "##        .agg(F.countDistinct(\"mid\").alias(\"au\")) \\\n",
+    "##        .withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\n",
+    "\n",
+    "##    login_df.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 106,
+   "metadata": {
+    "collapsed": false,
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0\n",
+      "1\n",
+      "2\n",
+      "3\n",
+      "4\n",
+      "5\n",
+      "6\n",
+      "7\n",
+      "8\n",
+      "9\n",
+      "10\n",
+      "11\n",
+      "12\n",
+      "13\n",
+      "14\n"
+     ]
+    }
+   ],
+   "source": [
+    "## for i in range(n):\n",
+    "##    print i"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "###### 루프"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 118,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "   product_key     pkg_name                        mindate  \\\n",
+      "0           46  마카롱맛 쿠키 패키지  2017-11-30T08:31:05.562+09:00   \n",
+      "\n",
+      "                     time2  start_date    end_date  \n",
+      "0  2017-12-01T08:31:05.000  2017-11-30  2017-12-01  \n",
+      "   product_key      pkg_name                        mindate  \\\n",
+      "1           50  음유시인맛 쿠키 패키지  2017-12-13T10:31:14.435+09:00   \n",
+      "\n",
+      "                     time2  start_date    end_date  \n",
+      "1  2017-12-14T10:31:14.000  2017-12-13  2017-12-14  \n"
+     ]
+    }
+   ],
+   "source": [
+    "for i in range(2):\n",
+    "    pd_df = cookie_min_pd[i:i+1]\n",
+    "    print pd_df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 119,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>product_key</th>\n",
+       "      <th>pkg_name</th>\n",
+       "      <th>mindate</th>\n",
+       "      <th>time2</th>\n",
+       "      <th>start_date</th>\n",
+       "      <th>end_date</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>2017-12-13T10:31:14.435+09:00</td>\n",
+       "      <td>2017-12-14T10:31:14.000</td>\n",
+       "      <td>2017-12-13</td>\n",
+       "      <td>2017-12-14</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   product_key      pkg_name                        mindate  \\\n",
+       "1           50  음유시인맛 쿠키 패키지  2017-12-13T10:31:14.435+09:00   \n",
+       "\n",
+       "                     time2  start_date    end_date  \n",
+       "1  2017-12-14T10:31:14.000  2017-12-13  2017-12-14  "
+      ]
+     },
+     "execution_count": 119,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "pd_df.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 120,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "u'\\uc74c\\uc720\\uc2dc\\uc778\\ub9db \\ucfe0\\ud0a4 \\ud328\\ud0a4\\uc9c0'"
+      ]
+     },
+     "execution_count": 120,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "pd_df[\"pkg_name\"].values[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 234,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "time_fmt = \"yyyy-MM-dd'T'HH:mm:ss.SSS\"\n",
+    "test = opt.option(\"primaryKey\", \"/login\").load() \\\n",
+    "    .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "    .selectExpr(\"mid\",\"`@timestamp` as dt\") \\\n",
+    "    .withColumn(\"pkg_min\", F.lit('{}'.format(start_dt))) \\\n",
+    "    .withColumn(\"diff_hour\", F.floor((F.unix_timestamp(\"dt\", format=time_fmt) - F.unix_timestamp(\"pkg_min\", format=time_fmt)) / 60 / 60))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 235,
+   "metadata": {
+    "collapsed": false,
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+---------+--------------------+--------------------+---------+\n",
+      "|      mid|                  dt|             pkg_min|diff_hour|\n",
+      "+---------+--------------------+--------------------+---------+\n",
+      "|CTXHC0000|2018-06-12T06:55:...|2018-06-12T00:02:...|        6|\n",
+      "|CTXHC0000|2018-06-12T07:37:...|2018-06-12T00:02:...|        7|\n",
+      "|CTXHC0000|2018-06-12T20:55:...|2018-06-12T00:02:...|       20|\n",
+      "|CTXHC0000|2018-06-12T22:14:...|2018-06-12T00:02:...|       22|\n",
+      "|TDBKC0000|2018-06-12T00:09:...|2018-06-12T00:02:...|        0|\n",
+      "|TDBKC0000|2018-06-12T08:28:...|2018-06-12T00:02:...|        8|\n",
+      "|TDBKC0000|2018-06-12T20:06:...|2018-06-12T00:02:...|       20|\n",
+      "|SLHMC0000|2018-06-12T21:44:...|2018-06-12T00:02:...|       21|\n",
+      "|SLHMC0000|2018-06-12T21:53:...|2018-06-12T00:02:...|       21|\n",
+      "|SLHMC0000|2018-06-12T22:05:...|2018-06-12T00:02:...|       22|\n",
+      "|SLHMC0000|2018-06-12T22:55:...|2018-06-12T00:02:...|       22|\n",
+      "|SLHMC0000|2018-06-12T23:46:...|2018-06-12T00:02:...|       23|\n",
+      "|JCMWC0000|2018-06-12T13:55:...|2018-06-12T00:02:...|       13|\n",
+      "|VGJRF0000|2018-06-12T22:29:...|2018-06-12T00:02:...|       22|\n",
+      "|CKQBG0000|2018-06-12T08:13:...|2018-06-12T00:02:...|        8|\n",
+      "|CKQBG0000|2018-06-12T18:09:...|2018-06-12T00:02:...|       18|\n",
+      "|CKQBG0000|2018-06-12T21:19:...|2018-06-12T00:02:...|       21|\n",
+      "|JYGQH0000|2018-06-12T18:57:...|2018-06-12T00:02:...|       18|\n",
+      "|KKHVK0000|2018-06-12T08:49:...|2018-06-12T00:02:...|        8|\n",
+      "|ZNCYK0000|2018-06-12T01:18:...|2018-06-12T00:02:...|        1|\n",
+      "+---------+--------------------+--------------------+---------+\n",
+      "only showing top 20 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "test.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 246,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+---------+------+-----------+\n",
+      "|diff_hour|    au|product_key|\n",
+      "+---------+------+-----------+\n",
+      "|       19| 11987|         46|\n",
+      "|        0| 18033|         46|\n",
+      "|       22| 33067|         46|\n",
+      "|        7| 55809|         46|\n",
+      "|        6| 53253|         46|\n",
+      "|        9|100142|         46|\n",
+      "|       17| 25701|         46|\n",
+      "|        5| 45226|         46|\n",
+      "|        1| 36490|         46|\n",
+      "|       10| 88252|         46|\n",
+      "|        3| 43015|         46|\n",
+      "|       12| 87944|         46|\n",
+      "|        8| 66266|         46|\n",
+      "|       11| 91615|         46|\n",
+      "|        2| 31710|         46|\n",
+      "|        4| 56954|         46|\n",
+      "|       13| 82354|         46|\n",
+      "|       18| 17122|         46|\n",
+      "|       14| 71187|         46|\n",
+      "|       21| 13155|         46|\n",
+      "+---------+------+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+------+-----------+\n",
+      "|diff_hour|    au|product_key|\n",
+      "+---------+------+-----------+\n",
+      "|       19| 12849|         50|\n",
+      "|        0| 44614|         50|\n",
+      "|       22| 46880|         50|\n",
+      "|        7| 83266|         50|\n",
+      "|        6| 68420|         50|\n",
+      "|        9|111780|         50|\n",
+      "|       17| 12175|         50|\n",
+      "|        5| 66119|         50|\n",
+      "|        1| 52375|         50|\n",
+      "|       10| 93199|         50|\n",
+      "|        3| 63412|         50|\n",
+      "|       12| 68199|         50|\n",
+      "|        8| 84180|         50|\n",
+      "|       11| 80694|         50|\n",
+      "|        2| 57292|         50|\n",
+      "|        4| 64007|         50|\n",
+      "|       13| 61168|         50|\n",
+      "|       18| 10263|         50|\n",
+      "|       14| 40423|         50|\n",
+      "|       21| 64749|         50|\n",
+      "+---------+------+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|12580|         53|\n",
+      "|        0|12533|         53|\n",
+      "|       22|29676|         53|\n",
+      "|        7|65663|         53|\n",
+      "|        6|65500|         53|\n",
+      "|        9|73332|         53|\n",
+      "|       17|26022|         53|\n",
+      "|        5|62053|         53|\n",
+      "|        1|38189|         53|\n",
+      "|       10|85480|         53|\n",
+      "|        3|51513|         53|\n",
+      "|       12|83236|         53|\n",
+      "|        8|68286|         53|\n",
+      "|       11|85269|         53|\n",
+      "|        2|47311|         53|\n",
+      "|        4|57123|         53|\n",
+      "|       13|78138|         53|\n",
+      "|       18|17862|         53|\n",
+      "|       14|68702|         53|\n",
+      "|       21|13251|         53|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|10768|         61|\n",
+      "|        0|54043|         61|\n",
+      "|       22|51741|         61|\n",
+      "|        7|63944|         61|\n",
+      "|        6|60075|         61|\n",
+      "|        9|77425|         61|\n",
+      "|       17|13842|         61|\n",
+      "|        5|60999|         61|\n",
+      "|        1|74159|         61|\n",
+      "|       10|75393|         61|\n",
+      "|        3|61991|         61|\n",
+      "|       12|65184|         61|\n",
+      "|        8|76383|         61|\n",
+      "|       11|72258|         61|\n",
+      "|        2|71391|         61|\n",
+      "|        4|63397|         61|\n",
+      "|       13|63750|         61|\n",
+      "|       18|10855|         61|\n",
+      "|       14|47188|         61|\n",
+      "|       21|29033|         61|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|43892|         64|\n",
+      "|        0| 8496|         64|\n",
+      "|       22|12356|         64|\n",
+      "|        7|50639|         64|\n",
+      "|        6|43182|         64|\n",
+      "|        9|45556|         64|\n",
+      "|       17|54220|         64|\n",
+      "|        5|41985|         64|\n",
+      "|        1|12904|         64|\n",
+      "|       10|43133|         64|\n",
+      "|        3|38639|         64|\n",
+      "|       12|52768|         64|\n",
+      "|        8|51801|         64|\n",
+      "|       11|47934|         64|\n",
+      "|        2|25269|         64|\n",
+      "|        4|41008|         64|\n",
+      "|       13|54004|         64|\n",
+      "|       18|50908|         64|\n",
+      "|       14|59107|         64|\n",
+      "|       21|17903|         64|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19| 9217|         73|\n",
+      "|        0|43432|         73|\n",
+      "|       22|39623|         73|\n",
+      "|        7|52479|         73|\n",
+      "|        6|47864|         73|\n",
+      "|        9|58209|         73|\n",
+      "|       17|11157|         73|\n",
+      "|        5|43226|         73|\n",
+      "|        1|49969|         73|\n",
+      "|       10|61009|         73|\n",
+      "|        3|50583|         73|\n",
+      "|       12|53616|         73|\n",
+      "|        8|54281|         73|\n",
+      "|       11|57840|         73|\n",
+      "|        2|55878|         73|\n",
+      "|        4|46204|         73|\n",
+      "|       13|49310|         73|\n",
+      "|       18| 8712|         73|\n",
+      "|       14|40122|         73|\n",
+      "|       21|27809|         73|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19| 9321|         76|\n",
+      "|        0|    5|         76|\n",
+      "|       22|40843|         76|\n",
+      "|        7|51473|         76|\n",
+      "|        6|45561|         76|\n",
+      "|        9|59342|         76|\n",
+      "|       17|11773|         76|\n",
+      "|        5|43514|         76|\n",
+      "|        1|11343|         76|\n",
+      "|       10|63185|         76|\n",
+      "|        3|59508|         76|\n",
+      "|       12|55799|         76|\n",
+      "|        8|54598|         76|\n",
+      "|       11|60701|         76|\n",
+      "|        2|78719|         76|\n",
+      "|        4|48433|         76|\n",
+      "|       13|49664|         76|\n",
+      "|       18| 9174|         76|\n",
+      "|       14|41645|         76|\n",
+      "|       21|26536|         76|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|13454|         79|\n",
+      "|        0| 6522|         79|\n",
+      "|       22| 9267|         79|\n",
+      "|        7|41552|         79|\n",
+      "|        6|35969|         79|\n",
+      "|        9|44066|         79|\n",
+      "|       17|35845|         79|\n",
+      "|        5|35892|         79|\n",
+      "|        1|34625|         79|\n",
+      "|       10|53879|         79|\n",
+      "|        3|24214|         79|\n",
+      "|       12|52681|         79|\n",
+      "|        8|38831|         79|\n",
+      "|       11|53199|         79|\n",
+      "|        2|24503|         79|\n",
+      "|        4|25083|         79|\n",
+      "|       13|55529|         79|\n",
+      "|       18|21405|         79|\n",
+      "|       14|53795|         79|\n",
+      "|       21| 8435|         79|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|21689|         82|\n",
+      "|        0|    4|         82|\n",
+      "|       22| 9755|         82|\n",
+      "|        7|37031|         82|\n",
+      "|        6|38282|         82|\n",
+      "|        9|42392|         82|\n",
+      "|       17|49211|         82|\n",
+      "|        5|36582|         82|\n",
+      "|        1|24223|         82|\n",
+      "|       10|50286|         82|\n",
+      "|        3|32422|         82|\n",
+      "|       12|56181|         82|\n",
+      "|        8|41673|         82|\n",
+      "|       11|54991|         82|\n",
+      "|        2|37865|         82|\n",
+      "|        4|31646|         82|\n",
+      "|       13|61935|         82|\n",
+      "|       18|34250|         82|\n",
+      "|       14|65227|         82|\n",
+      "|       21|11043|         82|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19| 9695|         84|\n",
+      "|        0|33175|         84|\n",
+      "|       22|37206|         84|\n",
+      "|        7|43850|         84|\n",
+      "|        6|39577|         84|\n",
+      "|        9|51797|         84|\n",
+      "|       17|14967|         84|\n",
+      "|        5|38753|         84|\n",
+      "|        1|31922|         84|\n",
+      "|       10|53586|         84|\n",
+      "|        3|37894|         84|\n",
+      "|       12|53519|         84|\n",
+      "|        8|47987|         84|\n",
+      "|       11|55052|         84|\n",
+      "|        2|36852|         84|\n",
+      "|        4|36329|         84|\n",
+      "|       13|49180|         84|\n",
+      "|       18|10968|         84|\n",
+      "|       14|46339|         84|\n",
+      "|       21|21327|         84|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+------+-----------+\n",
+      "|diff_hour|    au|product_key|\n",
+      "+---------+------+-----------+\n",
+      "|       19| 69976|         88|\n",
+      "|        0| 39710|         88|\n",
+      "|       22| 86222|         88|\n",
+      "|        7| 85404|         88|\n",
+      "|        6| 93229|         88|\n",
+      "|        9| 67957|         88|\n",
+      "|       17| 39975|         88|\n",
+      "|        5| 82381|         88|\n",
+      "|        1| 37186|         88|\n",
+      "|       10| 71973|         88|\n",
+      "|        3|103914|         88|\n",
+      "|       12| 29812|         88|\n",
+      "|        8| 75428|         88|\n",
+      "|       11| 43052|         88|\n",
+      "|        2| 79739|         88|\n",
+      "|        4| 77607|         88|\n",
+      "|       13| 21239|         88|\n",
+      "|       18| 58568|         88|\n",
+      "|       14| 16491|         88|\n",
+      "|       21|103322|         88|\n",
+      "+---------+------+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|75024|         94|\n",
+      "|        0|79944|         94|\n",
+      "|       22|73177|         94|\n",
+      "|        7|50172|         94|\n",
+      "|        6|25916|         94|\n",
+      "|        9|43131|         94|\n",
+      "|       17|69422|         94|\n",
+      "|        5|14585|         94|\n",
+      "|        1|54198|         94|\n",
+      "|       10|42183|         94|\n",
+      "|        3|17297|         94|\n",
+      "|       12|54873|         94|\n",
+      "|        8|51903|         94|\n",
+      "|       11|44595|         94|\n",
+      "|        2|25223|         94|\n",
+      "|        4|13845|         94|\n",
+      "|       13|53765|         94|\n",
+      "|       18|72211|         94|\n",
+      "|       14|57453|         94|\n",
+      "|       21|77611|         94|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|72049|        100|\n",
+      "|        0|69927|        100|\n",
+      "|       22|68278|        100|\n",
+      "|        7|48817|        100|\n",
+      "|        6|27371|        100|\n",
+      "|        9|42554|        100|\n",
+      "|       17|67780|        100|\n",
+      "|        5|16077|        100|\n",
+      "|        1|39856|        100|\n",
+      "|       10|43571|        100|\n",
+      "|        3|17846|        100|\n",
+      "|       12|62006|        100|\n",
+      "|        8|46329|        100|\n",
+      "|       11|53709|        100|\n",
+      "|        2|25725|        100|\n",
+      "|        4|13739|        100|\n",
+      "|       13|55092|        100|\n",
+      "|       18|75056|        100|\n",
+      "|       14|54079|        100|\n",
+      "|       21|72758|        100|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|69526|        101|\n",
+      "|        0|81082|        101|\n",
+      "|       22|71631|        101|\n",
+      "|        7|39307|        101|\n",
+      "|        6|20195|        101|\n",
+      "|        9|45969|        101|\n",
+      "|       17|57611|        101|\n",
+      "|        5|12769|        101|\n",
+      "|        1|41560|        101|\n",
+      "|       10|40522|        101|\n",
+      "|        3|17661|        101|\n",
+      "|       12|49541|        101|\n",
+      "|        8|53936|        101|\n",
+      "|       11|40245|        101|\n",
+      "|        2|25401|        101|\n",
+      "|        4|12954|        101|\n",
+      "|       13|49663|        101|\n",
+      "|       18|69152|        101|\n",
+      "|       14|48960|        101|\n",
+      "|       21|72158|        101|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n",
+      "+---------+-----+-----------+\n",
+      "|diff_hour|   au|product_key|\n",
+      "+---------+-----+-----------+\n",
+      "|       19|66677|        109|\n",
+      "|        0|77160|        109|\n",
+      "|       22|67578|        109|\n",
+      "|        7|46388|        109|\n",
+      "|        6|24077|        109|\n",
+      "|        9|43935|        109|\n",
+      "|       17|58203|        109|\n",
+      "|        5|13934|        109|\n",
+      "|        1|45871|        109|\n",
+      "|       10|38821|        109|\n",
+      "|        3|18468|        109|\n",
+      "|       12|49651|        109|\n",
+      "|        8|49235|        109|\n",
+      "|       11|38766|        109|\n",
+      "|        2|33352|        109|\n",
+      "|        4|13049|        109|\n",
+      "|       13|45434|        109|\n",
+      "|       18|70042|        109|\n",
+      "|       14|49790|        109|\n",
+      "|       21|68759|        109|\n",
+      "+---------+-----+-----------+\n",
+      "only showing top 20 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_list1 = list()\n",
+    "time_fmt = \"yyyy-MM-dd'T'HH:mm:ss.SSS\"\n",
+    "\n",
+    "for i in range(n):\n",
+    "    pd_df = cookie_min_pd[i:i+1]\n",
+    "    \n",
+    "    start_dt = pd_df[\"mindate\"].values[0]\n",
+    "    end_dt = pd_df[\"time2\"].values[0]\n",
+    "    start_date = pd_df[\"start_date\"].values[0]\n",
+    "    end_date = pd_df[\"end_date\"].values[0]\n",
+    "    pkg_name = pd_df[\"pkg_name\"].values[0]\n",
+    "    product_key = pd_df[\"product_key\"].values[0]\n",
+    "    \n",
+    "\n",
+    "    au_df = opt.option(\"primaryKey\", \"/login\").load() \\\n",
+    "        .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "        .selectExpr(\"mid\",\"`@timestamp` as dt\") \\\n",
+    "        .withColumn(\"pkg_min\", F.lit('{}'.format(start_dt))) \\\n",
+    "        .withColumn(\"diff_hour\", F.floor((F.unix_timestamp(\"dt\", format=time_fmt) - F.unix_timestamp(\"pkg_min\", format=time_fmt)) / 60 / 60)) \\\n",
+    "        .groupby(\"diff_hour\").agg(F.countDistinct(\"mid\").alias(\"au\")).withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\\\n",
+    "    \n",
+    "    au_df.show()\n",
+    "    df_list1.append(au_df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 247,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_au_all = reduce(DataFrame.union, df_list1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 248,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "root\n",
+      " |-- diff_hour: long (nullable = true)\n",
+      " |-- au: long (nullable = false)\n",
+      " |-- product_key: string (nullable = false)\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_au_all.printSchema()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 249,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+---------+------+-----------+\n",
+      "|diff_hour|    au|product_key|\n",
+      "+---------+------+-----------+\n",
+      "|       19| 11987|         46|\n",
+      "|        0| 18033|         46|\n",
+      "|       22| 33067|         46|\n",
+      "|        7| 55809|         46|\n",
+      "|        6| 53253|         46|\n",
+      "|        9|100142|         46|\n",
+      "|       17| 25701|         46|\n",
+      "|        5| 45226|         46|\n",
+      "|        1| 36490|         46|\n",
+      "|       10| 88252|         46|\n",
+      "+---------+------+-----------+\n",
+      "only showing top 10 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_au_all.show(10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 250,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all2= df_au_all.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 251,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>diff_hour</th>\n",
+       "      <th>au</th>\n",
+       "      <th>product_key</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>19</td>\n",
+       "      <td>11987</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0</td>\n",
+       "      <td>18033</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>22</td>\n",
+       "      <td>33067</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>7</td>\n",
+       "      <td>55809</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>6</td>\n",
+       "      <td>53253</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   diff_hour     au product_key\n",
+       "0         19  11987          46\n",
+       "1          0  18033          46\n",
+       "2         22  33067          46\n",
+       "3          7  55809          46\n",
+       "4          6  53253          46"
+      ]
+     },
+     "execution_count": 251,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_all2.head(5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 252,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all2.to_csv(\"au_by_hour.csv\", index = False, encoding = 'UTF-8')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 121,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|466339|         46|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|547683|         50|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|518407|         53|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|524405|         61|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|440711|         64|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|415591|         73|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|390457|         76|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|330083|         79|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|362915|         82|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|353443|         84|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|462983|         88|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|511959|         94|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|476907|        100|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|493756|        101|\n",
+      "+------+-----------+\n",
+      "\n",
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|477019|        109|\n",
+      "+------+-----------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "### AU구하기\n",
+    "df_list = list()\n",
+    "\n",
+    "for i in range(n):\n",
+    "    pd_df = cookie_min_pd[i:i+1]\n",
+    "    \n",
+    "    start_dt = pd_df[\"mindate\"].values[0]\n",
+    "    end_dt = pd_df[\"time2\"].values[0]\n",
+    "    start_date = pd_df[\"start_date\"].values[0]\n",
+    "    end_date = pd_df[\"end_date\"].values[0]\n",
+    "    pkg_name = pd_df[\"pkg_name\"].values[0]\n",
+    "    product_key = pd_df[\"product_key\"].values[0]\n",
+    "\n",
+    "    \n",
+    "    \n",
+    "    login_df = opt.option(\"primaryKey\", \"/login\").load() \\\n",
+    "        .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "        .withColumn(\"pkg_min\", F.lit('{}'.format(start_dt))) \\\n",
+    "        .withColumn(\"diff_hour\", )\n",
+    "        .agg(F.countDistinct(\"mid\").alias(\"au\")) \\\n",
+    "        .withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\\\n",
+    "\n",
+    "    \n",
+    "\n",
+    "    login_df.show()\n",
+    "    \n",
+    "    df_list.append(login_df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 213,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|477019|        109|\n",
+      "+------+-----------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "login_df.show(3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {
+    "collapsed": false,
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "ename": "AttributeError",
+     "evalue": "'DataFrame' object has no attribute 'withColumn'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[1;31mAttributeError\u001b[0m                            Traceback (most recent call last)",
+      "\u001b[1;32m<ipython-input-36-46afd0a78b81>\u001b[0m in \u001b[0;36m<module>\u001b[1;34m()\u001b[0m\n\u001b[0;32m      1\u001b[0m \u001b[1;31m##### 안씀\u001b[0m\u001b[1;33m\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m----> 2\u001b[1;33m \u001b[0mtest\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mpd_df\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mwithColumn\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m\"diff\"\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mpd_df\u001b[0m\u001b[1;33m[\u001b[0m\u001b[0mtime2\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mvalues\u001b[0m\u001b[1;33m[\u001b[0m\u001b[1;36m0\u001b[0m\u001b[1;33m]\u001b[0m \u001b[1;33m-\u001b[0m \u001b[0mpd_df\u001b[0m\u001b[1;33m[\u001b[0m\u001b[0mmindate\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mvalues\u001b[0m\u001b[1;33m[\u001b[0m\u001b[1;36m0\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m",
+      "\u001b[1;32m/home/ec2-user/anaconda2/lib/python2.7/site-packages/pandas/core/generic.pyc\u001b[0m in \u001b[0;36m__getattr__\u001b[1;34m(self, name)\u001b[0m\n\u001b[0;32m   2667\u001b[0m             \u001b[1;32mif\u001b[0m \u001b[0mname\u001b[0m \u001b[1;32min\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0m_info_axis\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   2668\u001b[0m                 \u001b[1;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m[\u001b[0m\u001b[0mname\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m-> 2669\u001b[1;33m             \u001b[1;32mreturn\u001b[0m \u001b[0mobject\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0m__getattribute__\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mself\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mname\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m   2670\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   2671\u001b[0m     \u001b[1;32mdef\u001b[0m \u001b[0m__setattr__\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mself\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mname\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mvalue\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+      "\u001b[1;31mAttributeError\u001b[0m: 'DataFrame' object has no attribute 'withColumn'"
+     ]
+    }
+   ],
+   "source": [
+    "##### 안씀 \n",
+    "test = pd_df.withColumn(\"diff\", pd_df[time2].values[0] - pd_df[mindate].values[0])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 122,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all = reduce(DataFrame.union, df_list)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 123,
+   "metadata": {
+    "collapsed": false,
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "root\n",
+      " |-- au: long (nullable = false)\n",
+      " |-- product_key: string (nullable = false)\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_all.printSchema()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 124,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+------+-----------+\n",
+      "|    au|product_key|\n",
+      "+------+-----------+\n",
+      "|466339|         46|\n",
+      "|547683|         50|\n",
+      "|518407|         53|\n",
+      "|524405|         61|\n",
+      "|440711|         64|\n",
+      "|415591|         73|\n",
+      "|390457|         76|\n",
+      "|330083|         79|\n",
+      "|362915|         82|\n",
+      "|353443|         84|\n",
+      "|462983|         88|\n",
+      "|511959|         94|\n",
+      "|476907|        100|\n",
+      "|493756|        101|\n",
+      "|477019|        109|\n",
+      "+------+-----------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_all.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 125,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all1= df_all.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 126,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>au</th>\n",
+       "      <th>product_key</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>466339</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>547683</td>\n",
+       "      <td>50</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>518407</td>\n",
+       "      <td>53</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>524405</td>\n",
+       "      <td>61</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>440711</td>\n",
+       "      <td>64</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>415591</td>\n",
+       "      <td>73</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>390457</td>\n",
+       "      <td>76</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>330083</td>\n",
+       "      <td>79</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>362915</td>\n",
+       "      <td>82</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>353443</td>\n",
+       "      <td>84</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>462983</td>\n",
+       "      <td>88</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>511959</td>\n",
+       "      <td>94</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>476907</td>\n",
+       "      <td>100</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>493756</td>\n",
+       "      <td>101</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>477019</td>\n",
+       "      <td>109</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "        au product_key\n",
+       "0   466339          46\n",
+       "1   547683          50\n",
+       "2   518407          53\n",
+       "3   524405          61\n",
+       "4   440711          64\n",
+       "5   415591          73\n",
+       "6   390457          76\n",
+       "7   330083          79\n",
+       "8   362915          82\n",
+       "9   353443          84\n",
+       "10  462983          88\n",
+       "11  511959          94\n",
+       "12  476907         100\n",
+       "13  493756         101\n",
+       "14  477019         109"
+      ]
+     },
+     "execution_count": 126,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_all1.head(15)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 127,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all1.to_csv(\"au.csv\", index = False, encoding = \"UTF-8\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 128,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "start_dt ='2017-11-30T08:31:05.562+09:00'\n",
+    "end_dt = '2017-12-01T08:31:05.000'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "ename": "IndentationError",
+     "evalue": "unexpected indent (<ipython-input-74-e7500b337cd4>, line 2)",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;36m  File \u001b[1;32m\"<ipython-input-74-e7500b337cd4>\"\u001b[1;36m, line \u001b[1;32m2\u001b[0m\n\u001b[1;33m    bill_df = opt.option(\"primaryKey\", \"/server/billing\").load()         .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt))         .agg(F.countDistinct(\"mid\").alias(\"pu\"))         .withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\u001b[0m\n\u001b[1;37m    ^\u001b[0m\n\u001b[1;31mIndentationError\u001b[0m\u001b[1;31m:\u001b[0m unexpected indent\n"
+     ]
+    }
+   ],
+   "source": [
+    "####test -- 안씀\n",
+    "    bill_df = opt.option(\"primaryKey\", \"/server/billing\").load() \\\n",
+    "        .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "        .agg(F.countDistinct(\"mid\").alias(\"pu\")) \\\n",
+    "        .withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\n",
+    "\n",
+    "    bill_df.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# PU 구하기"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 129,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "start_date = '2017-11-28'\n",
+    "end_date = '2018-06-12'\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 130,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|7652|         46|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|7513|         50|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|14182|         53|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|9702|         61|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|1878|         64|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|7736|         73|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|8457|         76|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10865|         79|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10072|         82|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|8900|         84|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+----+-----------+\n",
+      "|  pu|product_key|\n",
+      "+----+-----------+\n",
+      "|6396|         88|\n",
+      "+----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10731|         94|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10739|        100|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10130|        101|\n",
+      "+-----+-----------+\n",
+      "\n",
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "|10601|        109|\n",
+      "+-----+-----------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "##### PU구하기\n",
+    "df_list2 = list()\n",
+    "\n",
+    "for i in range(n):\n",
+    "    pd_df = cookie_min_pd[i:i+1]\n",
+    "    \n",
+    "    start_dt = pd_df[\"mindate\"].values[0]\n",
+    "    end_dt = pd_df[\"time2\"].values[0]\n",
+    "    start_date = pd_df[\"start_date\"].values[0]\n",
+    "    end_date = pd_df[\"end_date\"].values[0]\n",
+    "    pkg_name = pd_df[\"pkg_name\"].values[0]\n",
+    "    product_key = pd_df[\"product_key\"].values[0]\n",
+    "\n",
+    "\n",
+    "    \n",
+    "    pu_df = opt.option(\"primaryKey\", \"/server/billing\").load() \\\n",
+    "        .where(\"`@timestamp` >= '{0}' and `@timestamp` < '{1}'\".format(start_dt, end_dt)) \\\n",
+    "        .agg(F.countDistinct(\"mid\").alias(\"pu\")) \\\n",
+    "        .withColumn(\"product_key\", F.lit(\"{}\".format(product_key)))\\\n",
+    "\n",
+    "    \n",
+    "\n",
+    "    pu_df.show()\n",
+    "    \n",
+    "    df_list2.append(pu_df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 131,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all2 = reduce(DataFrame.union, df_list2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 132,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "root\n",
+      " |-- pu: long (nullable = false)\n",
+      " |-- product_key: string (nullable = false)\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_all2.printSchema()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 133,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----+-----------+\n",
+      "|   pu|product_key|\n",
+      "+-----+-----------+\n",
+      "| 7652|         46|\n",
+      "| 7513|         50|\n",
+      "|14182|         53|\n",
+      "| 9702|         61|\n",
+      "| 1878|         64|\n",
+      "| 7736|         73|\n",
+      "| 8457|         76|\n",
+      "|10865|         79|\n",
+      "|10072|         82|\n",
+      "| 8900|         84|\n",
+      "| 6396|         88|\n",
+      "|10731|         94|\n",
+      "|10739|        100|\n",
+      "|10130|        101|\n",
+      "|10601|        109|\n",
+      "+-----+-----------+\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_all2.show()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 134,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all3= df_all2.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 135,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>pu</th>\n",
+       "      <th>product_key</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>7652</td>\n",
+       "      <td>46</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>7513</td>\n",
+       "      <td>50</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>14182</td>\n",
+       "      <td>53</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>9702</td>\n",
+       "      <td>61</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1878</td>\n",
+       "      <td>64</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>7736</td>\n",
+       "      <td>73</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>8457</td>\n",
+       "      <td>76</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>10865</td>\n",
+       "      <td>79</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>10072</td>\n",
+       "      <td>82</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>8900</td>\n",
+       "      <td>84</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>6396</td>\n",
+       "      <td>88</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>10731</td>\n",
+       "      <td>94</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>10739</td>\n",
+       "      <td>100</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>10130</td>\n",
+       "      <td>101</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>10601</td>\n",
+       "      <td>109</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "       pu product_key\n",
+       "0    7652          46\n",
+       "1    7513          50\n",
+       "2   14182          53\n",
+       "3    9702          61\n",
+       "4    1878          64\n",
+       "5    7736          73\n",
+       "6    8457          76\n",
+       "7   10865          79\n",
+       "8   10072          82\n",
+       "9    8900          84\n",
+       "10   6396          88\n",
+       "11  10731          94\n",
+       "12  10739         100\n",
+       "13  10130         101\n",
+       "14  10601         109"
+      ]
+     },
+     "execution_count": 135,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_all3.head(15)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 136,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "df_all3.to_csv(\"pu.csv\", index = False, encoding = \"UTF-8\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 169,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "meta1 = spark.table(\"pkg_cookie\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 170,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "meta2 = meta1.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 172,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>product_key</th>\n",
+       "      <th>pkg_name</th>\n",
+       "      <th>mindate</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>76</td>\n",
+       "      <td>아보카도맛 쿠키 패키지</td>\n",
+       "      <td>2018-02-27T10:08:24.181+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>2017-12-13T10:31:14.435+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>101</td>\n",
+       "      <td>다크초코 쿠키 패키지</td>\n",
+       "      <td>2018-06-04T23:44:42.562+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>100</td>\n",
+       "      <td>칠리맛 쿠키 패키지</td>\n",
+       "      <td>2018-05-29T00:10:11.198+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>94</td>\n",
+       "      <td>블랙베리맛 쿠키 패키지</td>\n",
+       "      <td>2018-05-15T00:01:46.090+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>61</td>\n",
+       "      <td>단팥맛 쿠키 패키지</td>\n",
+       "      <td>2018-01-12T10:24:07.215+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>2018-01-26T05:09:33.116+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>84</td>\n",
+       "      <td>화이트초코 쿠키 패키지</td>\n",
+       "      <td>2018-04-10T09:15:55.864+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>79</td>\n",
+       "      <td>벚꽃맛 쿠키 패키지</td>\n",
+       "      <td>2018-03-13T07:07:52.655+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>88</td>\n",
+       "      <td>탐험가맛 쿠키 패키지</td>\n",
+       "      <td>2018-04-28T14:12:21.835+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>73</td>\n",
+       "      <td>핑크초코 쿠키 패키지</td>\n",
+       "      <td>2018-02-13T10:12:31.555+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>82</td>\n",
+       "      <td>휘핑크림맛 쿠키 패키지</td>\n",
+       "      <td>2018-03-27T06:28:24.302+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>109</td>\n",
+       "      <td>홍고추맛 쿠키 패키지</td>\n",
+       "      <td>2018-06-12T00:02:28.677+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>53</td>\n",
+       "      <td>스파클링맛 쿠키 패키지</td>\n",
+       "      <td>2017-12-20T08:28:55.412+09:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>46</td>\n",
+       "      <td>마카롱맛 쿠키 패키지</td>\n",
+       "      <td>2017-11-30T08:31:05.562+09:00</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    product_key       pkg_name                        mindate\n",
+       "0            76   아보카도맛 쿠키 패키지  2018-02-27T10:08:24.181+09:00\n",
+       "1            50   음유시인맛 쿠키 패키지  2017-12-13T10:31:14.435+09:00\n",
+       "2           101    다크초코 쿠키 패키지  2018-06-04T23:44:42.562+09:00\n",
+       "3           100     칠리맛 쿠키 패키지  2018-05-29T00:10:11.198+09:00\n",
+       "4            94   블랙베리맛 쿠키 패키지  2018-05-15T00:01:46.090+09:00\n",
+       "5            61     단팥맛 쿠키 패키지  2018-01-12T10:24:07.215+09:00\n",
+       "6            64  아이스캔디맛 쿠키 패키지  2018-01-26T05:09:33.116+09:00\n",
+       "7            84   화이트초코 쿠키 패키지  2018-04-10T09:15:55.864+09:00\n",
+       "8            79     벚꽃맛 쿠키 패키지  2018-03-13T07:07:52.655+09:00\n",
+       "9            88    탐험가맛 쿠키 패키지  2018-04-28T14:12:21.835+09:00\n",
+       "10           73    핑크초코 쿠키 패키지  2018-02-13T10:12:31.555+09:00\n",
+       "11           82   휘핑크림맛 쿠키 패키지  2018-03-27T06:28:24.302+09:00\n",
+       "12          109    홍고추맛 쿠키 패키지  2018-06-12T00:02:28.677+09:00\n",
+       "13           53   스파클링맛 쿠키 패키지  2017-12-20T08:28:55.412+09:00\n",
+       "14           46    마카롱맛 쿠키 패키지  2017-11-30T08:31:05.562+09:00"
+      ]
+     },
+     "execution_count": 172,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "meta2.head(35)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 173,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "meta2.to_csv(\"meta_package\", index = False, encoding = 'UTF-8')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 145,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "spark.sql(\"\"\"\n",
+    "    select product_key, pkg_name, min(date_time) as mindate\n",
+    "    from billing1\n",
+    "    where category2 = '쿠키패키지' and category3 != '레전드' and product_key >= 46\n",
+    "    group by product_key, pkg_name\n",
+    "\n",
+    "\"\"\").registerTempTable(\"pkg_meta\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 150,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+------------+--------------------+\n",
+      "|product_key|    pkg_name|             mindate|\n",
+      "+-----------+------------+--------------------+\n",
+      "|         76|아보카도맛 쿠키 패키지|2018-02-27T10:08:...|\n",
+      "|         50|음유시인맛 쿠키 패키지|2017-12-13T10:31:...|\n",
+      "|        101| 다크초코 쿠키 패키지|2018-06-04T23:44:...|\n",
+      "|        100|  칠리맛 쿠키 패키지|2018-05-29T00:10:...|\n",
+      "|         94|블랙베리맛 쿠키 패키지|2018-05-15T00:01:...|\n",
+      "+-----------+------------+--------------------+\n",
+      "only showing top 5 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"pkg_meta\").show(5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 151,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+---------+----------+--------------------+------------+--------------------+-------+---------+---------+---------+--------+\n",
+      "|product_key|      mid|      date|           date_time|player_level|          product_id|revenue|category1|category2|category3|pkg_name|\n",
+      "+-----------+---------+----------+--------------------+------------+--------------------+-------+---------+---------+---------+--------+\n",
+      "|       null|BBKWQ2240|2016-10-29|2016-10-29T16:01:...|        null|gb.tier10.levelpa...|11323.0|     null|     null|     null|    null|\n",
+      "|       null|RFLPN0961|2016-10-29|2016-10-29T17:22:...|        null|gb.tier10.levelpa...|11323.0|     null|     null|     null|    null|\n",
+      "+-----------+---------+----------+--------------------+------------+--------------------+-------+---------+---------+---------+--------+\n",
+      "only showing top 2 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"billing1\").show(2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# mindate 합쳐서 시간대별 쿠키 revenue 구하기"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "### getting the mindate for everything\n",
+    "meta2.to_csv(\"mindate.csv\", index = False, encoding = \"UTF-8\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 174,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "### for all cookies except the icecandy\n",
+    "spark.sql(\"\"\"\n",
+    "    select\n",
+    "    t3.product_key\n",
+    "    , t3.pkg_name\n",
+    "    , t3.diff\n",
+    "    , t3.date_time\n",
+    "    , t3.orig\n",
+    "    , t3.mid\n",
+    "    , t3.mindate\n",
+    "    from\n",
+    "    (\n",
+    "    select \n",
+    "        t1.product_key\n",
+    "        , t1.pkg_name\n",
+    "        , from_unixtime(unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")) as date_time\n",
+    "        , t1.date_time as orig\n",
+    "        , floor((((unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")))\n",
+    "        -((unix_timestamp(t2.mindate, \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))))/3600) as diff\n",
+    "        , t1.mid\n",
+    "        , t2.mindate\n",
+    "    from billing1 t1\n",
+    "    inner join pkg_meta t2\n",
+    "    on t1.product_key = t2.product_key\n",
+    "    ) t3\n",
+    "    where t3.diff < 24\n",
+    "\n",
+    "\"\"\").registerTempTable(\"temp_Table\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 175,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "+-----------+------------+----+-------------------+--------------------+---------+--------------------+\n",
+      "|product_key|    pkg_name|diff|          date_time|                orig|      mid|             mindate|\n",
+      "+-----------+------------+----+-------------------+--------------------+---------+--------------------+\n",
+      "|         50|음유시인맛 쿠키 패키지|   1|2017-12-13 11:53:19|2017-12-13T11:53:...|YGLNS0297|2017-12-13T10:31:...|\n",
+      "|         50|음유시인맛 쿠키 패키지|  14|2017-12-14 01:00:02|2017-12-14T01:00:...|HZLKX6223|2017-12-13T10:31:...|\n",
+      "|         50|음유시인맛 쿠키 패키지|  23|2017-12-14 10:15:42|2017-12-14T10:15:...|RRVFL6169|2017-12-13T10:31:...|\n",
+      "+-----------+------------+----+-------------------+--------------------+---------+--------------------+\n",
+      "only showing top 3 rows\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "spark.table(\"temp_Table\").show(3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 196,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "### for icecandy\n",
+    "spark.sql(\"\"\"\n",
+    "    select\n",
+    "    t3.product_key\n",
+    "    , t3.pkg_name\n",
+    "    , t3.diff\n",
+    "    , t3.date_time\n",
+    "    , t3.orig\n",
+    "    , t3.mid\n",
+    "    , t3.mindate\n",
+    "    from\n",
+    "    (\n",
+    "    select \n",
+    "        t1.product_key\n",
+    "        , t1.pkg_name\n",
+    "        , from_unixtime(unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")) as date_time\n",
+    "        , t1.date_time as orig\n",
+    "        , floor((((unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")))\n",
+    "        -((unix_timestamp(t2.mindate, \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))))/3600) as diff\n",
+    "        , t1.mid\n",
+    "        , t2.mindate\n",
+    "    from billing1 t1\n",
+    "    inner join icecandy t2\n",
+    "    on t1.product_key = t2.product_key\n",
+    "    ) t3\n",
+    "    where t3.diff < 24\n",
+    "    and t3.diff >= 0\n",
+    "\n",
+    "\"\"\").registerTempTable(\"temp_Table2\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 189,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "table1 = spark.table(\"temp_Table\").groupby(\"product_key\", \"pkg_name\", \"diff\").agg(F.countDistinct(\"mid\").alias(\"pu\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 190,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "table2 = table1.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 191,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>product_key</th>\n",
+       "      <th>pkg_name</th>\n",
+       "      <th>diff</th>\n",
+       "      <th>au</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>0</td>\n",
+       "      <td>610</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>6</td>\n",
+       "      <td>319</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>8</td>\n",
+       "      <td>398</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>10</td>\n",
+       "      <td>335</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>12</td>\n",
+       "      <td>325</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>2</td>\n",
+       "      <td>660</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>1</td>\n",
+       "      <td>740</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>11</td>\n",
+       "      <td>326</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>3</td>\n",
+       "      <td>477</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>4</td>\n",
+       "      <td>422</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>13</td>\n",
+       "      <td>283</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>5</td>\n",
+       "      <td>372</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>7</td>\n",
+       "      <td>377</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>9</td>\n",
+       "      <td>406</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>14</td>\n",
+       "      <td>237</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>15</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>21</td>\n",
+       "      <td>107</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>16</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>20</td>\n",
+       "      <td>70</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>17</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>23</td>\n",
+       "      <td>128</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>18</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>16</td>\n",
+       "      <td>110</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>19</th>\n",
+       "      <td>50</td>\n",
+       "      <td>음유시인맛 쿠키 패키지</td>\n",
+       "      <td>22</td>\n",
+       "      <td>100</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    product_key      pkg_name  diff   au\n",
+       "0            50  음유시인맛 쿠키 패키지     0  610\n",
+       "1            50  음유시인맛 쿠키 패키지     6  319\n",
+       "2            50  음유시인맛 쿠키 패키지     8  398\n",
+       "3            50  음유시인맛 쿠키 패키지    10  335\n",
+       "4            50  음유시인맛 쿠키 패키지    12  325\n",
+       "5            50  음유시인맛 쿠키 패키지     2  660\n",
+       "6            50  음유시인맛 쿠키 패키지     1  740\n",
+       "7            50  음유시인맛 쿠키 패키지    11  326\n",
+       "8            50  음유시인맛 쿠키 패키지     3  477\n",
+       "9            50  음유시인맛 쿠키 패키지     4  422\n",
+       "10           50  음유시인맛 쿠키 패키지    13  283\n",
+       "11           50  음유시인맛 쿠키 패키지     5  372\n",
+       "12           50  음유시인맛 쿠키 패키지     7  377\n",
+       "13           50  음유시인맛 쿠키 패키지     9  406\n",
+       "14           50  음유시인맛 쿠키 패키지    14  237\n",
+       "15           50  음유시인맛 쿠키 패키지    21  107\n",
+       "16           50  음유시인맛 쿠키 패키지    20   70\n",
+       "17           50  음유시인맛 쿠키 패키지    23  128\n",
+       "18           50  음유시인맛 쿠키 패키지    16  110\n",
+       "19           50  음유시인맛 쿠키 패키지    22  100"
+      ]
+     },
+     "execution_count": 191,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "table2.head(20)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 192,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "table2.to_csv(\"pu_by_hour.csv\", index =False, encoding = \"UTF-8\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 197,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "table12 = spark.table(\"temp_Table2\").groupby(\"product_key\", \"pkg_name\", \"diff\").agg(F.countDistinct(\"mid\").alias(\"pu\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 198,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "table22 = table12.toPandas()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 199,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>product_key</th>\n",
+       "      <th>pkg_name</th>\n",
+       "      <th>diff</th>\n",
+       "      <th>au</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1707</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>3</td>\n",
+       "      <td>1374</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>12</td>\n",
+       "      <td>1355</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>15</td>\n",
+       "      <td>1101</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>64</td>\n",
+       "      <td>아이스캔디맛 쿠키 패키지</td>\n",
+       "      <td>21</td>\n",
+       "      <td>1045</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   product_key       pkg_name  diff    au\n",
+       "0           64  아이스캔디맛 쿠키 패키지     2  1707\n",
+       "1           64  아이스캔디맛 쿠키 패키지     3  1374\n",
+       "2           64  아이스캔디맛 쿠키 패키지    12  1355\n",
+       "3           64  아이스캔디맛 쿠키 패키지    15  1101\n",
+       "4           64  아이스캔디맛 쿠키 패키지    21  1045"
+      ]
+     },
+     "execution_count": 199,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "table22.head(5)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 200,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "table22.to_csv(\"icecandy.csv\", index = False, encoding = \"UTF-8\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 로그인 데이터 합치기"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 59,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "ERROR: An unexpected error occurred while tokenizing input\n",
+      "The following traceback may be corrupted or invalid\n",
+      "The error message is: ('EOF in multi-line string', (1, 0))\n",
+      "\n"
+     ]
+    },
+    {
+     "ename": "ParseException",
+     "evalue": "u'\\nmismatched input \\'from\\' expecting {<EOF>, \\'WHERE\\', \\'GROUP\\', \\'ORDER\\', \\'HAVING\\', \\'LIMIT\\', \\'LATERAL\\', \\'WINDOW\\', \\'UNION\\', \\'EXCEPT\\', \\'MINUS\\', \\'INTERSECT\\', \\'SORT\\', \\'CLUSTER\\', \\'DISTRIBUTE\\'}(line 7, pos 4)\\n\\n== SQL ==\\n\\n    select\\n    t3.count(distict(mid))\\n    , t3.date\\n    , t3.diff\\n\\n    from\\n----^^^\\n    (\\n    select \\n        t1.mid\\n        , t1.date\\n        , from_unixtime(unix_timestamp(t1.date_time, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\")) as date_time\\n        , floor((((unix_timestamp(t1.date_time, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\")))\\n        -((unix_timestamp(t2.mindate, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\"))))/3600) as diff\\n        , t2.mindate\\n    from login1 t1\\n    outer join pkg_cookie t2\\n    on t1.date = t2.date\\n    ) t3\\n    where t3.diff < 24\\n    group by t3.date\\n'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[1;31mParseException\u001b[0m                            Traceback (most recent call last)",
+      "\u001b[1;32m<ipython-input-59-77f4c6ccd498>\u001b[0m in \u001b[0;36m<module>\u001b[1;34m()\u001b[0m\n\u001b[0;32m     22\u001b[0m     \u001b[0mgroup\u001b[0m \u001b[0mby\u001b[0m \u001b[0mt3\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mdate\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m     23\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m---> 24\u001b[1;33m \"\"\").registerTempTable(\"temp_Table2\")\n\u001b[0m",
+      "\u001b[1;32m/home/ec2-user/spark/python/pyspark/sql/session.pyc\u001b[0m in \u001b[0;36msql\u001b[1;34m(self, sqlQuery)\u001b[0m\n\u001b[0;32m    601\u001b[0m         \u001b[1;33m[\u001b[0m\u001b[0mRow\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mf1\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;36m1\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mf2\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;34mu'row1'\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mRow\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mf1\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;36m2\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mf2\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;34mu'row2'\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mRow\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mf1\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;36m3\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mf2\u001b[0m\u001b[1;33m=\u001b[0m\u001b[1;34mu'row3'\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    602\u001b[0m         \"\"\"\n\u001b[1;32m--> 603\u001b[1;33m         \u001b[1;32mreturn\u001b[0m \u001b[0mDataFrame\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0m_jsparkSession\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0msql\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0msqlQuery\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0m_wrapped\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m    604\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    605\u001b[0m     \u001b[1;33m@\u001b[0m\u001b[0msince\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;36m2.0\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+      "\u001b[1;32m/home/ec2-user/spark/python/lib/py4j-0.10.4-src.zip/py4j/java_gateway.py\u001b[0m in \u001b[0;36m__call__\u001b[1;34m(self, *args)\u001b[0m\n\u001b[0;32m   1131\u001b[0m         \u001b[0manswer\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mgateway_client\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0msend_command\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mcommand\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   1132\u001b[0m         return_value = get_return_value(\n\u001b[1;32m-> 1133\u001b[1;33m             answer, self.gateway_client, self.target_id, self.name)\n\u001b[0m\u001b[0;32m   1134\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   1135\u001b[0m         \u001b[1;32mfor\u001b[0m \u001b[0mtemp_arg\u001b[0m \u001b[1;32min\u001b[0m \u001b[0mtemp_args\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+      "\u001b[1;32m/home/ec2-user/spark/python/pyspark/sql/utils.pyc\u001b[0m in \u001b[0;36mdeco\u001b[1;34m(*a, **kw)\u001b[0m\n\u001b[0;32m     71\u001b[0m                 \u001b[1;32mraise\u001b[0m \u001b[0mAnalysisException\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0ms\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0msplit\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m': '\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;36m1\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m[\u001b[0m\u001b[1;36m1\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstackTrace\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m     72\u001b[0m             \u001b[1;32mif\u001b[0m \u001b[0ms\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mstartswith\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m'org.apache.spark.sql.catalyst.parser.ParseException: '\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m---> 73\u001b[1;33m                 \u001b[1;32mraise\u001b[0m \u001b[0mParseException\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0ms\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0msplit\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m': '\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;36m1\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m[\u001b[0m\u001b[1;36m1\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstackTrace\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m     74\u001b[0m             \u001b[1;32mif\u001b[0m \u001b[0ms\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mstartswith\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m'org.apache.spark.sql.streaming.StreamingQueryException: '\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m     75\u001b[0m                 \u001b[1;32mraise\u001b[0m \u001b[0mStreamingQueryException\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0ms\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0msplit\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m': '\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;36m1\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m[\u001b[0m\u001b[1;36m1\u001b[0m\u001b[1;33m]\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstackTrace\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+      "\u001b[1;31mParseException\u001b[0m: u'\\nmismatched input \\'from\\' expecting {<EOF>, \\'WHERE\\', \\'GROUP\\', \\'ORDER\\', \\'HAVING\\', \\'LIMIT\\', \\'LATERAL\\', \\'WINDOW\\', \\'UNION\\', \\'EXCEPT\\', \\'MINUS\\', \\'INTERSECT\\', \\'SORT\\', \\'CLUSTER\\', \\'DISTRIBUTE\\'}(line 7, pos 4)\\n\\n== SQL ==\\n\\n    select\\n    t3.count(distict(mid))\\n    , t3.date\\n    , t3.diff\\n\\n    from\\n----^^^\\n    (\\n    select \\n        t1.mid\\n        , t1.date\\n        , from_unixtime(unix_timestamp(t1.date_time, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\")) as date_time\\n        , floor((((unix_timestamp(t1.date_time, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\")))\\n        -((unix_timestamp(t2.mindate, \"yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\"))))/3600) as diff\\n        , t2.mindate\\n    from login1 t1\\n    outer join pkg_cookie t2\\n    on t1.date = t2.date\\n    ) t3\\n    where t3.diff < 24\\n    group by t3.date\\n'"
+     ]
+    }
+   ],
+   "source": [
+    "### for all cookies except the icecandy\n",
+    "spark.sql(\"\"\"\n",
+    "    select\n",
+    "    t3.count(distict(mid))\n",
+    "    , t3.date\n",
+    "    , t3.diff\n",
+    "\n",
+    "    from\n",
+    "    (\n",
+    "    select \n",
+    "        t1.mid\n",
+    "        , t1.date\n",
+    "        , from_unixtime(unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")) as date_time\n",
+    "        , floor((((unix_timestamp(t1.date_time, \"yyyy-MM-dd'T'HH:mm:ss.SSS\")))\n",
+    "        -((unix_timestamp(t2.mindate, \"yyyy-MM-dd'T'HH:mm:ss.SSS\"))))/3600) as diff\n",
+    "        , t2.mindate\n",
+    "        \n",
+    "    from login1 t1\n",
+    "    outer join pkg_cookie t2\n",
+    "    on t1.date = t2.date\n",
+    "    ) t3\n",
+    "    where t3.diff < 24\n",
+    "    group by t3.date\n",
+    "\n",
+    "\"\"\").registerTempTable(\"temp_Table2\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 2",
+   "language": "python",
+   "name": "python2"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 2
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython2",
+   "version": "2.7.11"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
